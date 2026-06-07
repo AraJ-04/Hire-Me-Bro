@@ -9,8 +9,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Middleware
-app.use(express.json());
+// app.use((req, res, next) => {
+//   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+//   if(req.body.password === "password123") {
+//     next()
+//   }else{
+//     res.status(401).json({ error: "Unauthorized: Invalid password" });
+//   }
+
+// });
 
 // ==========================================
 // HEALTH CHECK & TEST ROUTE
@@ -23,10 +30,11 @@ app.get('/health', (req, res) => {
 // 1. USER & PROFILE ENDPOINTS
 // ==========================================
 
-// Create or sync user profile (e.g., after onboarding or Whisper AI transcription entry)
+// Create or sync user profile
 app.post('/api/users', async (req, res) => {
   const { email, name, bio, skills } = req.body;
   try {
+    // WAITING ON SCHEMA: Ensure 'profile' and 'preferences' relations match the new schema
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -38,13 +46,14 @@ app.post('/api/users', async (req, res) => {
           },
         },
         preferences: {
-          create: {}, // Initialize empty preferences layer
+          create: {}, 
         },
       },
       include: { profile: true, preferences: true },
     });
     res.status(201).json(newUser);
   } catch (error) {
+    console.error("[User Creation Error]:", error);
     res.status(400).json({ error: 'User registration failed', details: error.message });
   }
 });
@@ -57,15 +66,15 @@ app.post('/api/users', async (req, res) => {
 app.post('/api/resumes/scan', async (req, res) => {
   const { userId, fileUrl, parsedText, targetJobRole } = req.body;
   try {
-    // 1. Save the resume instance
+    // WAITING ON SCHEMA: Verify 'resume' model fields
     const resume = await prisma.resume.create({
       data: { userId, fileUrl, parsedText },
     });
 
-    // Mocking the AI Orchestration layer score generation for testing schema
-    // In production, insert your Gemini/GPT parsing logic here
+    // Mocking the AI Orchestration layer score generation
     const mockAtsScore = Math.floor(Math.random() * 40) + 60; 
 
+    // WAITING ON SCHEMA: Verify 'atsScan' model fields and JSON structures
     const scanResult = await prisma.atsScan.create({
       data: {
         resumeId: resume.id,
@@ -79,6 +88,7 @@ app.post('/api/resumes/scan', async (req, res) => {
 
     res.status(201).json({ resume, scanResult });
   } catch (error) {
+    console.error("[ATS Scan Error]:", error);
     res.status(500).json({ error: 'Failed to process ATS diagnostic', details: error.message });
   }
 });
@@ -87,30 +97,34 @@ app.post('/api/resumes/scan', async (req, res) => {
 // 3. AUTOMATION & JOB APPLICATION ENDPOINTS
 // ==========================================
 
-// Log a job listing (Populated via your Java-based scraping ingestion)
+// Log a job listing 
 app.post('/api/jobs', async (req, res) => {
   const { title, company, location, sourcePlatform, externalUrl, description, requiredSkills } = req.body;
   try {
+    // WAITING ON SCHEMA: Verify 'jobListing' model fields
     const job = await prisma.jobListing.create({
       data: { title, company, location, sourcePlatform, externalUrl, description, requiredSkills, postedAt: new Date() },
     });
     res.status(201).json(job);
   } catch (error) {
+    console.error("[Job Logging Error]:", error);
     res.status(400).json({ error: 'Failed to log scraped job', details: error.message });
   }
 });
 
-// Update Application Status (Essential for your Interview Conversion metric)
+// Update Application Status 
 app.patch('/api/applications/:id', async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body; // e.g., "RECRUITER_CONTACT", "INTERVIEWING"
+  const { status } = req.body; 
   try {
+    // WAITING ON SCHEMA: Verify 'jobApplication' update logic
     const updatedApplication = await prisma.jobApplication.update({
       where: { id },
       data: { status },
     });
     res.status(200).json(updatedApplication);
   } catch (error) {
+    console.error("[Application Update Error]:", error);
     res.status(400).json({ error: 'Failed to update application tracker', details: error.message });
   }
 });

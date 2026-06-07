@@ -1,64 +1,69 @@
 generator client {
-provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-provider  = "postgresql"
-url       = env("DATABASE_URL")
-directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ==========================================
-// 1. USER & AUTHENTICATION LAYER
+// 1. USER & AUTHENTICATION LAYER (UPDATED)
 // ==========================================
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  name          String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id               String         @id @default(uuid())
+  email            String         @unique
+  name             String?
+  passwordHash     String?        // <-- MISSING: Required for native login
+  authProvider     String         @default("LOCAL") // <-- MISSING: "LOCAL", "GOOGLE", "GITHUB"
+  isEmailVerified  Boolean        @default(false)   // <-- MISSING: Security health check
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   
-  // Relations
-  profile       UserProfile?
-  resumes       Resume[]
-  githubProfile GithubProfile?
-  roadmaps      Roadmap[]
-  applications  JobApplication[]
-  preferences   UserPreference?
+  profile          UserProfile?
+  resumes          Resume[]
+  githubProfile    GithubProfile?
+  roadmaps         Roadmap[]
+  applications     JobApplication[]
+  preferences      UserPreference?
 }
 
 model UserProfile {
   id          String   @id @default(uuid())
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio         String?  // Can store transcripts from Whisper AI voice entry
-  skills      String[] // Array of current verified skills
-  experience  Json?    // Structured employment history
-  education   Json?    // Structured education history
+  bio         String?  
+  skills      String[] 
+  experience  Json?    
+  education   Json?    
 }
 
 model UserPreference {
   id           String   @id @default(uuid())
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roleTypes    String[] // e.g., ["Frontend", "Backend"]
-  locations    String[] // e.g., ["Remote", "Bengaluru"]
+  roleTypes    String[] 
+  locations    String[] 
   minSalary    Int?
-  autoApply    Boolean  @default(false) // Toggles the "Autonomous Mode"
+  autoApply    Boolean  @default(false) 
 }
 
 // ==========================================
-// 2. RESUME & GITHUB ANALYSIS LAYER
+// 2. RESUME & GITHUB ANALYSIS LAYER (UPDATED)
 // ==========================================
 model Resume {
   id          String      @id @default(uuid())
   userId      String
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   fileUrl     String
-  parsedText  String?     // Raw text for AI ingestion
+  parsedText  String?     
+  isMain      Boolean     @default(false) // <-- MISSING: Tells the bot which resume to send
   createdAt   DateTime    @default(now())
   
   atsScans    AtsScan[]
+
+  @@index([userId]) // <-- MISSING: Speeds up finding a user's resumes
 }
 
 model AtsScan {
@@ -66,11 +71,13 @@ model AtsScan {
   resumeId      String
   resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
   targetJobRole String
-  overallScore  Int      // ATS Diagnostic score out of 100
-  keywordGaps   String[] // Keywords suggested by AI for injection
-  projectFixes  Json     // AI evaluation/quantification suggestions for portfolio projects
-  rawFeedback   Json     // Full structural breakdown
+  overallScore  Int      
+  keywordGaps   String[] 
+  projectFixes  Json     
+  rawFeedback   Json     
   scannedAt     DateTime @default(now())
+
+  @@index([resumeId])
 }
 
 model GithubProfile {
@@ -78,29 +85,33 @@ model GithubProfile {
   userId        String   @unique
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   username      String
+  encryptedToken String?  // <-- MISSING: For background workers to access GitHub API securely
   totalCommits  Int      @default(0)
   topLanguages  String[]
-  repositories  Json     // Details of scanned repos, tech stacks, and consistency signals
+  repositories  Json     
   lastSyncedAt  DateTime @default(now())
 }
 
 // ==========================================
-// 3. JOB DISCOVERY & AUTOMATION LAYER
+// 3. JOB DISCOVERY & AUTOMATION LAYER (UPDATED)
 // ==========================================
 model JobListing {
-  id            String           @id @default(uuid())
-  title         String
-  company       String
-  location      String
-  sourcePlatform String          // "LinkedIn", "Unstop", "Internshala"
-  externalUrl   String           @unique
-  description   String
+  id             String           @id @default(uuid())
+  title          String
+  company        String
+  location       String
+  sourcePlatform String          
+  externalUrl    String           @unique
+  description    String
   requiredSkills String[]
-  salaryRange   String?
-  postedAt      DateTime
-  createdAt     DateTime         @default(now()) // Tracked for Java multithreaded ingestion timing
+  salaryRange    String?
+  isActive       Boolean          @default(true) // <-- MISSING: Stops bots from applying to dead jobs
+  postedAt       DateTime
+  createdAt      DateTime         @default(now()) 
   
-  applications  JobApplication[]
+  applications   JobApplication[]
+
+  @@index([sourcePlatform]) // <-- MISSING: Speeds up your dashboard charts
 }
 
 model JobApplication {
@@ -109,11 +120,29 @@ model JobApplication {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobListingId    String
   jobListing      JobListing        @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
-  status          ApplicationStatus @default(PENDING) // Track interview conversion
-  coverLetter     String?           // AI-generated personalized content
-  isAutonomous    Boolean           @default(false)   // True if applied via "set-and-forget"
+  status          ApplicationStatus @default(PENDING) 
+  rejectionReason String?           // <-- MISSING: Metric to tell AI why it was rejected
+  coverLetter     String?           
+  isAutonomous    Boolean           @default(false)   
   appliedAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+
+  history         ApplicationHistory[] // <-- MISSING: Connects to history tracking entries
+
+  @@index([userId])
+  @@index([jobListingId])
+}
+
+// <-- MISSING MODEL: Tracks the lifecycle of an application over time
+model ApplicationHistory {
+  id            String            @id @default(uuid())
+  applicationId String
+  application   JobApplication    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  oldStatus     ApplicationStatus?
+  newStatus     ApplicationStatus
+  changedAt     DateTime          @default(now())
+
+  @@index([applicationId])
 }
 
 enum ApplicationStatus {
@@ -126,7 +155,7 @@ enum ApplicationStatus {
 }
 
 // ==========================================
-// 4. ROADMAP & UPSKILLING LAYER
+// 4. ROADMAP & UPSKILLING LAYER (UPDATED)
 // ==========================================
 model Roadmap {
   id          String        @id @default(uuid())
@@ -137,18 +166,22 @@ model Roadmap {
   updatedAt   DateTime      @updatedAt
   
   milestones  Milestone[]
+
+  @@index([userId])
 }
 
 model Milestone {
   id          String   @id @default(uuid())
   roadmapId   String
   roadmap     Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
-  title       String   // e.g., "Master Multithreading in Java"
+  title       String   
   description String?
-  order       Int      // Execution sequence
+  order       Int      
   isCompleted Boolean  @default(false)
   
-  courses     Course[] // AI-Recommended courses
+  courses     Course[]
+
+  @@index([roadmapId])
 }
 
 model Course {
@@ -156,7 +189,9 @@ model Course {
   milestoneId String
   milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   title       String
-  platform    String    // "Coursera", "Udemy", etc.
+  platform    String    
   url         String
-  isCompleted Boolean   @default(false) // Tracks "ATS Booster" certification completion
+  isCompleted Boolean   @default(false) 
+
+  @@index([milestoneId])
 }
