@@ -7,3 +7,156 @@ provider  = "postgresql"
 url       = env("DATABASE_URL")
 directUrl = env("DIRECT_URL")
 }
+
+// ==========================================
+// 1. USER & AUTHENTICATION LAYER
+// ==========================================
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  // Relations
+  profile       UserProfile?
+  resumes       Resume[]
+  githubProfile GithubProfile?
+  roadmaps      Roadmap[]
+  applications  JobApplication[]
+  preferences   UserPreference?
+}
+
+model UserProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio         String?  // Can store transcripts from Whisper AI voice entry
+  skills      String[] // Array of current verified skills
+  experience  Json?    // Structured employment history
+  education   Json?    // Structured education history
+}
+
+model UserPreference {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleTypes    String[] // e.g., ["Frontend", "Backend"]
+  locations    String[] // e.g., ["Remote", "Bengaluru"]
+  minSalary    Int?
+  autoApply    Boolean  @default(false) // Toggles the "Autonomous Mode"
+}
+
+// ==========================================
+// 2. RESUME & GITHUB ANALYSIS LAYER
+// ==========================================
+model Resume {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileUrl     String
+  parsedText  String?     // Raw text for AI ingestion
+  createdAt   DateTime    @default(now())
+  
+  atsScans    AtsScan[]
+}
+
+model AtsScan {
+  id            String   @id @default(uuid())
+  resumeId      String
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  targetJobRole String
+  overallScore  Int      // ATS Diagnostic score out of 100
+  keywordGaps   String[] // Keywords suggested by AI for injection
+  projectFixes  Json     // AI evaluation/quantification suggestions for portfolio projects
+  rawFeedback   Json     // Full structural breakdown
+  scannedAt     DateTime @default(now())
+}
+
+model GithubProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username      String
+  totalCommits  Int      @default(0)
+  topLanguages  String[]
+  repositories  Json     // Details of scanned repos, tech stacks, and consistency signals
+  lastSyncedAt  DateTime @default(now())
+}
+
+// ==========================================
+// 3. JOB DISCOVERY & AUTOMATION LAYER
+// ==========================================
+model JobListing {
+  id            String           @id @default(uuid())
+  title         String
+  company       String
+  location      String
+  sourcePlatform String          // "LinkedIn", "Unstop", "Internshala"
+  externalUrl   String           @unique
+  description   String
+  requiredSkills String[]
+  salaryRange   String?
+  postedAt      DateTime
+  createdAt     DateTime         @default(now()) // Tracked for Java multithreaded ingestion timing
+  
+  applications  JobApplication[]
+}
+
+model JobApplication {
+  id              String            @id @default(uuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobListingId    String
+  jobListing      JobListing        @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  status          ApplicationStatus @default(PENDING) // Track interview conversion
+  coverLetter     String?           // AI-generated personalized content
+  isAutonomous    Boolean           @default(false)   // True if applied via "set-and-forget"
+  appliedAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPLIED
+  RECRUITER_CONTACT
+  INTERVIEWING
+  OFFER
+  REJECTED
+}
+
+// ==========================================
+// 4. ROADMAP & UPSKILLING LAYER
+// ==========================================
+model Roadmap {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole  String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  milestones  Milestone[]
+}
+
+model Milestone {
+  id          String   @id @default(uuid())
+  roadmapId   String
+  roadmap     Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  title       String   // e.g., "Master Multithreading in Java"
+  description String?
+  order       Int      // Execution sequence
+  isCompleted Boolean  @default(false)
+  
+  courses     Course[] // AI-Recommended courses
+}
+
+model Course {
+  id          String    @id @default(uuid())
+  milestoneId String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  title       String
+  platform    String    // "Coursera", "Udemy", etc.
+  url         String
+  isCompleted Boolean   @default(false) // Tracks "ATS Booster" certification completion
+}
