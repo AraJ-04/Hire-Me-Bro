@@ -1,0 +1,12 @@
+backend/node_modules
+# Keep environment variables out of version control
+backend/.env
+
+backend/prisma/seed.js
+backend/scripts
+backend/server.err.log
+backend/server.out.log
+backend/server.wait.err.log
+backend/server.wait.out.log
+.vscode
+
