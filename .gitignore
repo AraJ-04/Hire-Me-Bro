@@ -10,3 +10,8 @@ backend/server.wait.err.log
 backend/server.wait.out.log
 .vscode
 
+
+frontend/node_modules
+frontend/.env.local
+
+
