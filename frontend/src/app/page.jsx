@@ -2,9 +2,81 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export default function LandingPage() {
+  const canvasRef = useRef(null);
+
+  // Background Particle Animation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let width, height, particles = [];
+    let animationFrameId;
+
+    const init = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      
+      // Generate particles
+      particles = Array.from({ length: 40 }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: Math.random() * 2 + 1, // Radius
+        vx: (Math.random() - 0.5) * 0.5, // X Velocity
+        vy: (Math.random() - 0.5) * 0.5, // Y Velocity
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+      
+      // Draw Particles
+      ctx.fillStyle = "#010766";
+      particles.forEach((p, index) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        
+        // Bounce off edges
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+        
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw connecting lines for a "Neural Network" effect
+        for (let j = index + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p.x - p2.x;
+          const dy = p.y - p2.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 120) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(1, 7, 102, ${0.15 - distance / 800})`; // Fades out over distance
+            ctx.lineWidth = 0.5;
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+      });
+      
+      animationFrameId = requestAnimationFrame(draw);
+    };
+
+    init();
+    draw();
+    window.addEventListener("resize", init);
+
+    return () => {
+      window.removeEventListener("resize", init);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
   // Intersection Observer for scroll animations
   useEffect(() => {
     const observerOptions = { threshold: 0.1 };
@@ -35,45 +107,52 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="bg-[#fbf8ff] text-[#1b1b21] overflow-x-hidden min-h-screen">
+    <div className="bg-[#fbf8ff] text-[#1b1b21] overflow-x-hidden min-h-screen selection:bg-[#bdc2ff] relative">
+      
+      {/* Animated Network Background */}
+      <canvas 
+        ref={canvasRef} 
+        className="fixed inset-0 pointer-events-none z-0 opacity-40" 
+      />
+
       {/* Top Navigation */}
       <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-[#c6c5d4]">
-        <nav className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-12 py-4">
+        <nav className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-12 h-20">
           <div className="flex items-center gap-4">
-           <Link href="/" className="flex items-center">
-           <img src="/screen.png" alt="Hire Me Bro Logo" className="h-16 w-auto object-contain mix-blend-multiply scale-[1.8] ml-6" />
-           </Link>
+            <Link href="/" className="flex items-center">
+              <img src="/screen.png" alt="Hire Me Bro Logo" className="h-16 w-auto object-contain mix-blend-multiply scale-[1.8] ml-6" />
+            </Link>
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-base text-[#ae2f34] font-bold border-b-2 border-[#ae2f34] pb-1">
+            <a href="#features" className="text-sm font-semibold text-[#464651] hover:text-[#ae2f34] transition-colors">
               Features
             </a>
-            <a href="#stories" className="text-base text-[#464651] hover:text-[#ae2f34] transition-colors">
+            <a href="#stories" className="text-sm font-semibold text-[#464651] hover:text-[#ae2f34] transition-colors">
               Success Stories
             </a>
-            <Link href="/pricing" className="text-base text-[#464651] hover:text-[#ae2f34] transition-colors">
-            Pricing
+            <Link href="/pricing" className="text-sm font-semibold text-[#464651] hover:text-[#ae2f34] transition-colors">
+              Pricing
             </Link>
-            <Link href="/login" className="text-base text-[#464651] hover:text-[#ae2f34] transition-colors">
+            <Link href="/login" className="text-sm font-semibold text-[#464651] hover:text-[#ae2f34] transition-colors">
               Login
             </Link>
           </div>
           <Link
-            href="/dashboard"
-            className="bg-black text-white px-6 py-2 rounded-full font-medium text-sm hover:opacity-90 active:scale-95 transition-all"
+            href="/signup"
+            className="bg-black text-white px-6 py-2.5 rounded-full font-medium text-sm hover:opacity-90 active:scale-95 transition-all shadow-md"
           >
             Get Started
           </Link>
         </nav>
       </header>
 
-      <main className="pt-24">
+      <main className="pt-24 relative z-10">
         {/* Section 1: Hero */}
         <section className="relative px-6 py-12 md:py-32 flex flex-col items-center text-center max-w-7xl mx-auto">
           {/* Hero Glow */}
           <div className="absolute -top-24 -z-10 w-full h-[600px] rounded-full blur-[120px] opacity-15 bg-[radial-gradient(circle,_#ae2f34_0%,_#000666_100%)]" />
 
-          <div className="mb-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#efecf5] border border-[#c6c5d3]">
+          <div className="mb-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#efecf5] border border-[#c6c5d3] shadow-sm">
             <span className="w-2 h-2 rounded-full bg-[#ff6b6b] animate-pulse" />
             <span className="text-xs font-semibold uppercase tracking-wider text-[#464651]">
               AI-Powered Career Tracking
@@ -117,7 +196,7 @@ export default function LandingPage() {
               />
             </div>
 
-            {/* Floating Glass Card - BLUR FIXED HERE */}
+            {/* Floating Glass Card */}
             <div
               className="absolute -right-8 -bottom-8 hidden lg:block w-64 bg-white p-5 rounded-xl border border-[#c6c5d4] shadow-xl animate-bounce"
               style={{ animationDuration: "5s" }}
@@ -151,7 +230,6 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Feature 1 */}
             <div className="group bg-white p-6 rounded-xl border border-[#c6c5d4] hover:border-[#ae2f34] transition-all hover:shadow-md">
               <div className="w-12 h-12 bg-[#efecf5] rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <span className="material-symbols-outlined text-black text-2xl">description</span>
@@ -172,7 +250,6 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            {/* Feature 2 */}
             <div className="group bg-white p-6 rounded-xl border border-[#c6c5d4] hover:border-[#ae2f34] transition-all hover:shadow-md">
               <div className="w-12 h-12 bg-[#efecf5] rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <span className="material-symbols-outlined text-black text-2xl">terminal</span>
@@ -193,7 +270,6 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            {/* Feature 3 */}
             <div className="group bg-white p-6 rounded-xl border border-[#c6c5d4] hover:border-[#ae2f34] transition-all hover:shadow-md">
               <div className="w-12 h-12 bg-[#efecf5] rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <span className="material-symbols-outlined text-black text-2xl">rocket_launch</span>
@@ -217,7 +293,7 @@ export default function LandingPage() {
         </section>
 
         {/* Section 3: Skill Gap & Roadmaps */}
-        <section className="py-16 bg-[#f5f2fb] px-6 md:px-12 overflow-hidden">
+        <section className="py-16 bg-white/50 backdrop-blur-sm px-6 md:px-12 overflow-hidden border-y border-[#c6c5d4]">
           <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12">
             <div className="flex-1">
               <h2 className="text-3xl font-bold text-black mb-4">
@@ -228,7 +304,7 @@ export default function LandingPage() {
                 Visualize your path to top tech roles with AI-curated learning paths. Our platform identifies the gap between your current profile and market demand.
               </p>
               <div className="space-y-4">
-                <div className="bg-white p-4 rounded-lg border border-[#c6c5d4] flex items-center gap-4">
+                <div className="bg-white p-4 rounded-lg border border-[#c6c5d4] flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 bg-[#010766] text-white rounded-full flex items-center justify-center">
                     <span className="material-symbols-outlined">map</span>
                   </div>
@@ -237,7 +313,7 @@ export default function LandingPage() {
                     <p className="text-xs text-[#464651]">Adaptive paths based on hiring trends.</p>
                   </div>
                 </div>
-                <div className="bg-white p-4 rounded-lg border border-[#c6c5d4] flex items-center gap-4">
+                <div className="bg-white p-4 rounded-lg border border-[#c6c5d4] flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 bg-[#ffdad8] text-[#410006] rounded-full flex items-center justify-center">
                     <span className="material-symbols-outlined">verified</span>
                   </div>
@@ -263,7 +339,7 @@ export default function LandingPage() {
                     <span>System Design</span>
                     <span className="text-[#ae2f34]">92%</span>
                   </div>
-                  <div className="h-2.5 w-full bg-[#efecf5] rounded-full">
+                  <div className="h-2.5 w-full bg-[#efecf5] rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-[#000666] to-[#4c56af] w-[92%] rounded-full" />
                   </div>
                 </div>
@@ -272,7 +348,7 @@ export default function LandingPage() {
                     <span>Distributed Systems</span>
                     <span className="text-[#ae2f34]">64%</span>
                   </div>
-                  <div className="h-2.5 w-full bg-[#efecf5] rounded-full">
+                  <div className="h-2.5 w-full bg-[#efecf5] rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-[#000666] to-[#4c56af] w-[64%] rounded-full" />
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-[#8c151f] bg-[#ffdad8] px-2 py-0.5 rounded w-fit mt-1">
@@ -285,7 +361,7 @@ export default function LandingPage() {
                     <span>Kubernetes / Cloud</span>
                     <span className="text-[#ae2f34]">45%</span>
                   </div>
-                  <div className="h-2.5 w-full bg-[#efecf5] rounded-full">
+                  <div className="h-2.5 w-full bg-[#efecf5] rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-[#000666] to-[#4c56af] w-[45%] rounded-full" />
                   </div>
                 </div>
@@ -295,22 +371,22 @@ export default function LandingPage() {
         </section>
 
         {/* Section 4: Stats */}
-        <section className="py-16 bg-black text-white">
+        <section className="py-16 bg-black text-white relative z-10">
           <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
-              <div className="text-5xl font-extrabold mb-2">10k+</div>
+              <div className="text-5xl font-extrabold mb-2 text-white">10k+</div>
               <div className="text-[#bdc2ff] text-xs tracking-widest uppercase font-semibold">
                 Careers Accelerated
               </div>
             </div>
             <div>
-              <div className="text-5xl font-extrabold mb-2">45%</div>
+              <div className="text-5xl font-extrabold mb-2 text-white">45%</div>
               <div className="text-[#bdc2ff] text-xs tracking-widest uppercase font-semibold">
                 Faster Hiring
               </div>
             </div>
             <div>
-              <div className="text-5xl font-extrabold mb-2">92%</div>
+              <div className="text-5xl font-extrabold mb-2 text-white">92%</div>
               <div className="text-[#bdc2ff] text-xs tracking-widest uppercase font-semibold">
                 ATS Pass Rate
               </div>
@@ -319,8 +395,8 @@ export default function LandingPage() {
         </section>
 
         {/* Section 5: CTA */}
-        <section className="py-16 px-6">
-          <div className="max-w-4xl mx-auto bg-[#e4e1ea] rounded-3xl p-10 md:p-16 text-center relative overflow-hidden">
+        <section className="py-16 px-6 relative z-10">
+          <div className="max-w-4xl mx-auto bg-white/80 backdrop-blur-md rounded-3xl p-10 md:p-16 text-center border border-[#c6c5d4] shadow-xl">
             <h2 className="text-3xl md:text-5xl font-bold text-black mb-4">
               Ready to Maximize Your Career?
             </h2>
@@ -330,7 +406,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Link
                 href="/signup"
-                className="bg-black text-white px-8 py-4 rounded-full font-semibold hover:scale-105 transition-transform"
+                className="bg-black text-white px-8 py-4 rounded-full font-semibold hover:scale-105 transition-transform shadow-md"
               >
                 Get Started for Free
               </Link>
@@ -346,16 +422,16 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full px-6 md:px-12 py-10 flex flex-col md:flex-row justify-between items-center gap-6 bg-white border-t border-[#c6c5d4]">
+      <footer className="relative z-10 w-full px-6 md:px-12 py-10 flex flex-col md:flex-row justify-between items-center gap-6 bg-white border-t border-[#c6c5d4]">
         <div className="flex flex-col gap-1 items-center md:items-start">
           <span className="text-lg font-bold text-black">Hire Me Bro</span>
           <p className="text-xs text-[#464651]">© 2026 Hire Me Bro. All rights reserved.</p>
         </div>
         <div className="flex flex-wrap justify-center gap-6 text-sm text-[#464651]">
-          <a href="#" className="hover:text-[#ae2f34]">About Us</a>
-          <a href="#" className="hover:text-[#ae2f34]">Careers</a>
-          <a href="#" className="hover:text-[#ae2f34]">Privacy Policy</a>
-          <a href="#" className="hover:text-[#ae2f34]">Terms of Service</a>
+          <Link href="/about" className="hover:text-[#ae2f34] font-semibold transition-colors">About Us</Link>
+          <Link href="/careers" className="hover:text-[#ae2f34] font-semibold transition-colors">Careers</Link>
+          <Link href="/privacy" className="hover:text-[#ae2f34] font-semibold transition-colors">Privacy Policy</Link>
+          <Link href="/terms" className="hover:text-[#ae2f34] font-semibold transition-colors">Terms of Service</Link>
         </div>
       </footer>
     </div>
